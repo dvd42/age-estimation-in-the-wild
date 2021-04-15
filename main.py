@@ -1,27 +1,24 @@
 # import the necessary packages
-from imutils.video import VideoStream
-import numpy as np
-import collections
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from  torchvision import models
 import argparse
-import imutils
-import time
-import cv2
 import os
+import time
+
+import cv2
+import imutils
+import numpy as np
+import torch
+import torch.nn.functional as F
 
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-cam", "--webcam", action='store_true',
-        help="use webcam to record video and process it")
+                help="use webcam to record video and process it")
 ap.add_argument("-c", "--confidence", type=float, default=0.5,
-        help="minimum probability to filter weak face detections")
+                help="minimum probability to filter weak face detections")
 ap.add_argument("-img", "--images", default="images",
-        help="path to where the images are")
+                help="path to where the images are")
 ap.add_argument("-o", "--output", default="output",
-        help="path to store output")
+                help="path to store output")
 
 args = vars(ap.parse_args())
 
@@ -52,7 +49,7 @@ def detect_faces(frame):
     (h, w) = frame.shape[:2]
 
     blob = cv2.dnn.blobFromImage(cv2.resize(frame, (256, 256)), 1.0,
-            (256, 256), (123, 117, 104))
+                                 (256, 256), (123, 117, 104))
 
     net.setInput(blob)
     detections = net.forward()
@@ -77,7 +74,6 @@ def detect_faces(frame):
 
 def draw_boxes(frame, detections, age, gender):
 
-
     (h, w) = frame.shape[:2]
 
     for i in range(0, detections.shape[2]):
@@ -93,22 +89,23 @@ def draw_boxes(frame, detections, age, gender):
         startX, startY, endX, endY = compute_margin(box, h, w)
 
         color = (0, 0, 255) if gender.max(1)[1][i] == 1 else (0, 255, 0)
-        text = "Age: {:.2f}".format(age[i])
-        y = endY- 10 if endY - 10 > 10 else endY + 10
+        g = "Masculino" if gender.max(1)[1][i] == 1 else "Femenino"
+        text = " {}: {:.2f}".format(g, age[i])
+        y = endY - 10 if endY - 10 > 10 else endY + 10
 
         cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
         cv2.putText(frame, text, (startX, y),
-               cv2.FONT_HERSHEY_SIMPLEX, 0.7 , color, 2)
-
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
     return frame
+
 
 def forward(input):
 
     with torch.no_grad():
 
-        age_model.eval() # we will only run inference on this model
-        gender_model.eval() # we will only run inference on this model
+        age_model.eval()  # we will only run inference on this model
+        gender_model.eval()  # we will only run inference on this model
 
         age = age_model(input.to(device))
         age = F.softmax(age, dim=1)
@@ -123,15 +120,14 @@ def forward(input):
 
 def build_batch(cropped_faces, frame):
 
-
-    input = torch.ones(len(cropped_faces), 3, 224,224).to(device)
+    input = torch.ones(len(cropped_faces), 3, 224, 224).to(device)
 
     for i, face in enumerate(cropped_faces):
 
         if face.shape[0] > 224 and face.shape[1] > 224:
 
-            face = cv2.resize(face, (224,224))
-            input[i] = torch.from_numpy(face).permute(2,0,1)
+            face = cv2.resize(face, (224, 224))
+            input[i] = torch.from_numpy(face).permute(2, 0, 1)
 
     return input
 
@@ -153,7 +149,6 @@ def process_frame(frame):
         # Draw rectangles around the faces to indicate age and gender
         frame = draw_boxes(frame, detections, age, gender)
 
-
     return frame
 
 
@@ -163,8 +158,9 @@ if __name__ == "__main__":
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
     # Load our serialized models from disk
-    net = cv2.dnn.readNetFromCaffe('model/deploy.prototxt.txt',
-            'model/res10_300x300_ssd_iter_140000.caffemodel')
+    net = cv2.dnn.readNetFromCaffe(
+        'model/deploy.prototxt.txt',
+        'model/res10_300x300_ssd_iter_140000.caffemodel')
     age_model = torch.load("model/age_model.pth").to(device)
     gender_model = torch.load("model/gender_model.pth").to(device)
 
@@ -172,7 +168,10 @@ if __name__ == "__main__":
 
         # Define the codec and create VideoWriter object
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter(os.path.join(args["output"], 'cam.avi'),fourcc, 20.0, (1000, 750))
+        out = cv2.VideoWriter(
+            os.path.join(args["output"],
+                         'cam.avi'),
+            fourcc, 20.0, (1000, 750))
 
         # Initialize the video stream and allow the cammera sensor to warmup
         vs = cv2.VideoCapture(-1)
@@ -185,7 +184,7 @@ if __name__ == "__main__":
 
             cv2.imshow("Frame", frame)
             out.write(cv2.resize(frame, (1000, 750)))
-            cv2.moveWindow("Frame", 100,50);
+            #cv2.moveWindow("Frame", 500, 50)
 
             # If the `q` key was pressed, break from the loop
             key = cv2.waitKey(1) & 0xFF
@@ -205,11 +204,11 @@ if __name__ == "__main__":
 
             frame = cv2.imread(os.path.join(path, img))
             frame = process_frame(frame)
-            
-            cv2.namedWindow(img ,cv2.WINDOW_NORMAL)
-            cv2.resizeWindow(img, 1000,1000)
+
+            cv2.namedWindow(img, cv2.WINDOW_NORMAL)
+            cv2.resizeWindow(img, 1000, 1000)
             cv2.imshow(img, frame)
-            cv2.moveWindow(img, 100,50);
+            cv2.moveWindow(img, 100, 50)
             cv2.waitKey(0)
             cv2.destroyAllWindows()
             cv2.imwrite(os.path.join(args["output"], img), frame)
